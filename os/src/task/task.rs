@@ -103,9 +103,11 @@ impl TaskControlBlockInner {
         self.get_status() == TaskStatus::Zombie
     }
     pub fn alloc_fd(&mut self) -> usize {
+        // 在进程控制块中分配一个最小的空闲文件描述符来访问一个新打开的文件
         if let Some(fd) = (0..self.fd_table.len()).find(|fd| self.fd_table[*fd].is_none()) {
             fd
         } else {
+            // 如果没有的话就需要拓展文件描述符表的长度并新分配一个
             self.fd_table.push(None);
             self.fd_table.len() - 1
         }
@@ -184,6 +186,7 @@ impl TaskControlBlock {
         // push arguments on user stack
         user_sp -= (args.len() + 1) * core::mem::size_of::<usize>();
         let argv_base = user_sp;
+        // argv是一个指针数组, 指向了存放在栈上的argv[i]
         let mut argv: Vec<_> = (0..=args.len())
             .map(|arg| {
                 translated_refmut(
@@ -220,7 +223,10 @@ impl TaskControlBlock {
             self.kernel_stack.get_top(),
             trap_handler as usize,
         );
+        // 用户栈结构参考: http://learningos.cn/rCore-Tutorial-Guide-2023A/_images/user-stack-cmdargs.png
+        // 让 a0 表示命令行参数的个数
         trap_cx.x[10] = args.len();
+        // a1 则表示图中 argv_base 即蓝色区域的起始地址
         trap_cx.x[11] = argv_base;
         *inner.get_trap_cx() = trap_cx;
         // **** release current PCB

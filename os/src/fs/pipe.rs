@@ -35,16 +35,22 @@ const RING_BUFFER_SIZE: usize = 32;
 
 #[derive(Copy, Clone, PartialEq)]
 enum RingBufferStatus {
+    /// 缓冲区已满不能再继续写入
     Full,
+    /// 缓冲区为空无法从里面读取
     Empty,
+    /// 除了 FULL 和 EMPTY 之外的其他状态
     Normal,
 }
 
 pub struct PipeRingBuffer {
     arr: [u8; RING_BUFFER_SIZE],
+    /// 循环队列队头的下标
     head: usize,
+    /// 为循环队列队尾的下标
     tail: usize,
     status: RingBufferStatus,
+    // 写端的一个弱引用计数
     write_end: Option<Weak<Pipe>>,
 }
 
@@ -95,6 +101,7 @@ impl PipeRingBuffer {
         }
     }
     pub fn all_write_ends_closed(&self) -> bool {
+        // 如果升级失败的话，说明管道写端的强引用计数为 0
         self.write_end.as_ref().unwrap().upgrade().is_none()
     }
 }
@@ -127,6 +134,7 @@ impl File for Pipe {
                 if ring_buffer.all_write_ends_closed() {
                     return already_read;
                 }
+                // 需要手动释放管道自身的锁，因为切换任务时候的 __switch 并不是一个正常的函数调用
                 drop(ring_buffer);
                 suspend_current_and_run_next();
                 continue;
