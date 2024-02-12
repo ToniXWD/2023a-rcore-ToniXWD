@@ -1,5 +1,7 @@
-OUTPUT_ARCH(riscv)
+OUTPUT_ARCH(riscv) 
+/*设置了目标平台为 riscv */
 ENTRY(_start)
+/* 设置了整个程序的入口点为之前定义的全局符号 _start */
 BASE_ADDRESS = 0x80200000;
 
 SECTIONS
